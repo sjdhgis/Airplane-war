@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title></title>
+	</head>
+	<body>
+		<canvas id="canvas" width="500px" height="600px" style="border: 1px solid red; margin: auto; display: block;">
+			你的浏览器太拉胯了，居然不支持canvas！
+		</canvas>
+		<script src="utils.js" type="text/javascript" charset="utf-8"></script>
+		<script src="sprite.js" type="text/javascript" charset="utf-8"></script>
+		<script type="text/javascript">
+			var FPS = 60;
+			var WIDTH = 512;
+			var HEIGHT = 700;
+
+			var HERO_WIDTH = 100;
+			var HERO_HEIGHT = 80;
+
+			var BULLET_WIDTH = 30;
+			var BULLET_HEIGHT = 30;
+			var BULLET_SPEED = 10;
+			var BULLET_FRENQUENT = 10;
+			
+			var ENEMY_SPEED = 6;
+			var ENEMY_FRENQUENT = 30;
+
+			var canvas = document.getElementById("canvas");
+			canvas.width = WIDTH;
+			canvas.height = HEIGHT;
+			// 获取画笔
+			var ctx = canvas.getContext("2d");
+			ctx.font = "20px 宋体";
+			ctx.fillStyle = "#fff"
+			var num = 0;
+
+			var bgImg = new Image();
+			bgImg.src = 'images/bg.jpg';
+
+			var heroImg = new Image();
+			heroImg.src = 'images/hero1.png';
+
+			var enemyImg = new Image();
+			enemyImg.src = 'images/enemy.png';
+
+			var bulletImg = new Image();
+			bulletImg.src = 'images/bullet.png';
+
+			// bg记录了背景图片的坐标
+			var bg = {
+				x: 0,
+				y: 0,
+				speed: 2
+			}
+			// 一个对象 记录和hero相关的参数
+			var heroObj = {
+				x: WIDTH / 2 - HERO_WIDTH / 2,
+				y: HEIGHT - HERO_HEIGHT,
+				width: HERO_WIDTH,
+				height: HERO_HEIGHT,
+				img: heroImg,
+				score:0
+			}
+
+			//  一个数组用于放置多个子弹对象
+			var bulletArr = [];
+			var bulletArrs = [];
+			var enemyArr = [];
+			var explosionArr = [];
+			var explosionArrs = [];
+			// 鼠标事件控制飞机的移动
+			canvas.onmousemove = function(e) {
+				// console.log(e);
+				heroObj.x = e.offsetX - HERO_WIDTH / 2;
+				heroObj.y = e.offsetY - HERO_HEIGHT / 2;
+			}
+
+			// 开启定时器，设定每50ms就重新绘制一下图像
+			var timer = setInterval(function() {
+				// 清空画布
+				ctx.clearRect(0, 0, WIDTH, HEIGHT);
+				// 定时器的计数器
+				num++;
+				ctx.drawImage(bgImg, bg.x, bg.y, WIDTH, HEIGHT);
+				ctx.drawImage(bgImg, bg.x, bg.y - HEIGHT, WIDTH, HEIGHT);
+				if (bg.y < HEIGHT) {
+					bg.y += bg.speed;
+				} else {
+					bg.y = 0;
+				}
+				
+				// 每 BULLET_FRENQUENT 个定时器间隔之后， 就生成一颗子弹
+				if(num % BULLET_FRENQUENT === 0){
+					bulletArr.push({
+						x:heroObj.x+35,
+						y:heroObj.y,
+						width:BULLET_WIDTH,
+						height:BULLET_HEIGHT,
+						speed:BULLET_SPEED,
+						img:bulletImg
+					})
+				}
+				if(num % ENEMY_FRENQUENT === 0){
+					enemyArr.push({
+						x: getRandom(0, WIDTH - HERO_WIDTH),
+						y: -HERO_HEIGHT,
+						width: HERO_WIDTH,
+						height: HERO_HEIGHT,
+						speed: ENEMY_SPEED,
+						img: enemyImg
+					})
+				}
+				
+									
+				// 遍历数组，把数组中的每个子弹对象都绘制到画布上
+				for(var i=0; i < bulletArr.length; i++){
+					var bulletObj = bulletArr[i];
+					ctx.drawImage(bulletObj.img, bulletObj.x, bulletObj.y, bulletObj.width, bulletObj.height);
+					bulletObj.y -= bulletObj.speed;
+					// 子弹的y坐标 小于 某个值 就认定它飞出了画布
+					// 飞出画布的子弹 就从数组中移除
+					if(bulletObj.y < -bulletObj.height - 5){
+						// bulletArr.shift();
+						// 找到子弹对象在数组中的索引
+						var index = bulletArr.indexOf(bulletObj);
+						// 根据索引从数组中删除
+						bulletArr.splice(index, 1);
+					}
+				}
+				// 绘制敌机
+				for(var i=0; i < enemyArr.length; i++){
+					var e = enemyArr[i];
+					ctx.drawImage(e.img,e.x,e.y,e.width, e.height);
+					e.y += e.speed;
+					
+					if(e.y > HEIGHT){
+						arrRemove(enemyArr, e);
+					}
+				}
+				for(var i=0;i<explosionArr.length;i++){
+					var explosion=explosionArr[i];
+					explosion.draw();
+				}
+				// 判断子弹和敌机是否发生碰撞
+				var result = isCollideGroup(bulletArr, enemyArr);
+				if(result){
+					// 把发生碰撞的 子弹 和 敌机 从数组中移除，那么就有了击落效果
+					arrRemove(bulletArr, result[0]);
+					arrRemove(enemyArr, result[1]);
+					heroObj.score ++;
+					explosionArr.push(new Explosion(result[1].x,result[1].y,80,80))
+				}
+				// 判断一下玩家是否撞上了敌机
+				var kill = isCollideOneAndGroup(heroObj, enemyArr);
+				if(kill){
+					clearInterval(timer);
+					ctx.save();
+					ctx.font="100px 隶书";
+					ctx.fillStyle = "red";
+					ctx.fillText("Game over", 50, 300);
+					ctx.restore();
+				}
+				ctx.drawImage(heroObj.img, heroObj.x, heroObj.y, heroObj.width, heroObj.height);
+				ctx.fillText(`得分：${heroObj.score}`, 10, 20);
+			}, 1000 / FPS)
+		</script>
+	</body>
+</html>
